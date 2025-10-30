@@ -2,11 +2,11 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { FormState } from './formTypes';
 import { initialState } from './initialFormState';
 import { loadApplication, saveApplication, submitApplication } from './formThunks';
+import { submissionService } from '../../services/submissionService';
 
 // Fonction pour sauvegarder dans le localStorage
 const saveToLocalStorage = (state: FormState) => {
   try {
-    localStorage.setItem('isSubmitted', 'true');
     localStorage.setItem('closingFormData', JSON.stringify({
       formData: state.formData,
       diligenceInfo: state.diligenceInfo,
@@ -33,12 +33,20 @@ const formSlice = createSlice({
   initialState: (() => {
     // Essayer de charger les données sauvegardées au démarrage
     const savedData = loadFromLocalStorage();
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    isDevelopment && console.log('🔍 FormSlice Init Debug:', {
+      hasStoredData: !!savedData,
+      savedData
+    });
+    
     if (savedData) {
       return {
         ...initialState,
-        ...savedData
+        ...savedData,
+        isSubmitted: false // Toujours false au démarrage, seul le backend détermine
       };
     }
+    
     return initialState;
   })(),
   reducers: {
@@ -92,7 +100,6 @@ const formSlice = createSlice({
       state.isSubmitted = false;
       localStorage.removeItem('closingFormData');
       localStorage.removeItem('formAuthenticated');
-      saveToLocalStorage(state);
     }
   },
   extraReducers: (builder) => {
@@ -112,9 +119,16 @@ const formSlice = createSlice({
         console.log('Formulaire sauvegardé');
       })
       .addCase(submitApplication.fulfilled, (state, action) => {
-        // Vider le formulaire après soumission réussie
-        localStorage.removeItem('closingFormData');
-        console.log('Formulaire soumis');
+        // MARQUER LE FORMULAIRE COMME SOUMIS LOCALEMENT
+        state.isSubmitted = true;
+        
+        // Sauvegarder les données (sans isSubmitted dans localStorage)
+        saveToLocalStorage(state);
+        
+        // Notifier le backend (Make.com) de la soumission
+        submissionService.markAsSubmitted().catch(error => {
+          console.error('❌ Erreur lors de la notification backend:', error);
+        });
       });
   }
 });

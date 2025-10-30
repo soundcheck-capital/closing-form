@@ -6,6 +6,7 @@ import { store } from './store';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MultiStepForm from './components/MultiStepForm';
 import ProtectedRoute from './components/ProtectedRoute';
+import FormSubmissionGuard from './components/FormSubmissionGuard';
 import reportWebVitals from './reportWebVitals';
 import SubmitSuccess from './components/SubmitSuccess';
 import PasswordProtection from './components/PasswordProtection';
@@ -21,7 +22,13 @@ root.render(
         <Routes>
             <Route path="/" element={<Navigate to="/form" replace />} />
             <Route path="/login" element={<PasswordProtection />} />
-            <Route path="/form" element={<ProtectedRoute><MultiStepForm /></ProtectedRoute>} />
+            <Route path="/form" element={
+              <ProtectedRoute>
+                <FormSubmissionGuard>
+                  <MultiStepForm />
+                </FormSubmissionGuard>
+              </ProtectedRoute>
+            } />
             <Route path="/submit-success" element={<SubmitSuccess />} />
         </Routes>
       </BrowserRouter>
