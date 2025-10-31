@@ -62,9 +62,10 @@ class StripeFCAService {
   /**
    * Récupère les données FCA pour un customer Stripe
    * @param customerId - ID du customer Stripe
+   * @param hubspotDealId - ID du deal HubSpot (optionnel)
    * @returns Promise<FCAResponse>
    */
-  async getFCAData(customerId: string): Promise<FCAResponse> {
+  async getFCAData(customerId: string, hubspotDealId?: string): Promise<FCAResponse> {
     const requestKey = this.getRequestKey(customerId);
     
     return this.deduplicateRequest(requestKey, async () => {
@@ -81,9 +82,14 @@ class StripeFCAService {
 
         console.log('📡 Calling FCA webhook:', this.webhookUrl);
         
-        const payload = {
+        const payload: any = {
           customerId
         };
+        
+        if (hubspotDealId) {
+          payload.hubspotDealId = hubspotDealId;
+        }
+        
         console.log('📡 FCA payload sent:', payload);
 
         // Créer un AbortController pour gérer le timeout
@@ -174,11 +180,12 @@ class StripeFCAService {
   }
 
   /**
-   * Récupère les données FCA en utilisant le customer ID de l'environnement
+   * Récupère les données FCA en utilisant les variables d'environnement
    * @returns Promise<FCAResponse>
    */
   async getFCADataFromEnv(): Promise<FCAResponse> {
     const customerId = process.env.REACT_APP_STRIPE_CUSTOMER_ID;
+    const hubspotDealId = process.env.REACT_APP_HUBSPOT_DEAL_ID;
     
     if (!customerId) {
       return {
@@ -187,7 +194,8 @@ class StripeFCAService {
       };
     }
 
-    return this.getFCAData(customerId);
+    console.log('📋 Using HubSpot Deal ID:', hubspotDealId);
+    return this.getFCAData(customerId, hubspotDealId);
   }
 }
 
