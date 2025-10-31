@@ -28,8 +28,7 @@ const SubmitSuccess: React.FC = () => {
           />
         </div>
         <div className='flex flex-col items-center justify-center gap-4'>
-          <h1 className='text-2xl font-bold text-white mt-4 text-center'>Application submitted successfully!</h1>
-          <p className='text-sm text-white'>You will receive an email with your application details.</p>
+          <h1 className='text-2xl font-bold text-white mt-4 text-center'>Contract signed successfully!</h1>
           
           {/* Development Mode Reset Button */}
           {  isDevelopment && localStorage.getItem('DISABLE_SUBMISSION_BLOCK') === 'true' && (
