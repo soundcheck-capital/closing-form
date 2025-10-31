@@ -186,67 +186,18 @@ const ContractStep: React.FC<ContractStepProps> = ({
           console.log('🚪 DocuSign iframe closed by user');
           setIsIframeClosed(true);
           
-          // Vérifier le statut après fermeture
-          if (event.data.event === 'signing_complete') {
-            console.log('✅ Signing complete event received, checking status...');
-            loadContractStatus();
-          }
+          // Note: Le statut sera vérifié au clic sur "Next"
+          // Pas de vérification automatique pour éviter les boucles
         }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [loadContractStatus]);
+  }, []); // Pas de dépendances pour éviter les re-créations
 
-  // Polling du statut quand l'iframe est affichée
-  useEffect(() => {
-    if (!signingUrl || contractStatus === 'completed') {
-      return; // Pas de polling si pas d'iframe ou déjà complété
-    }
-
-    console.log('🔄 Starting status polling for contract...');
-    const pollInterval = setInterval(async () => {
-      console.log('⏰ Polling contract status...');
-      const envelopeId = process.env.REACT_APP_FUTURE_PURCHASE_AGREEMENT_DOCUSIGN_ID;
-      if (!envelopeId) return;
-
-      try {
-        const result = await makeDocuSignService.getEnvelopeStatus(envelopeId, true);
-        const resultAny = result as any;
-        const status = resultAny.status;
-        const signedDateTime = resultAny.signedDateTime;
-
-        console.log('📊 Polled status:', { status, signedDateTime });
-
-        if (status === 'completed' || status === 'signed') {
-          console.log('✅ Contract completed during polling!');
-          setContractStatus('completed');
-          setSigningUrl(null);
-          setIsIframeClosed(false);
-          
-          if (onContractChange) {
-            onContractChange({
-              envelopeId,
-              signingUrl: undefined,
-              status: 'completed',
-              isSigned: true,
-              signedAt: signedDateTime || new Date().toISOString(),
-              recipientEmail,
-              recipientId
-            });
-          }
-        }
-      } catch (error) {
-        console.error('❌ Error during status polling:', error);
-      }
-    }, 5000); // Vérifier toutes les 5 secondes
-
-    return () => {
-      console.log('🛑 Stopping status polling');
-      clearInterval(pollInterval);
-    };
-  }, [signingUrl, contractStatus, onContractChange, recipientEmail, recipientId]);
+  // Pas de polling automatique pour éviter les boucles
+  // La vérification se fait uniquement au clic sur "Next"
 
   return (
     <div className="w-full h-full flex flex-col">

@@ -177,67 +177,18 @@ const RRStep: React.FC<RRStepProps> = ({
           console.log('🚪 RR DocuSign iframe closed by user');
           setIsIframeClosed(true);
           
-          // Vérifier le statut après fermeture
-          if (event.data.event === 'signing_complete') {
-            console.log('✅ RR Signing complete event received, checking status...');
-            loadRRStatus();
-          }
+          // Note: Le statut sera vérifié au clic sur "Next"
+          // Pas de vérification automatique pour éviter les boucles
         }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [loadRRStatus]);
+  }, []); // Pas de dépendances pour éviter les re-créations
 
-  // Polling du statut quand l'iframe est affichée
-  useEffect(() => {
-    if (!signingUrl || rrStatus === 'completed') {
-      return; // Pas de polling si pas d'iframe ou déjà complété
-    }
-
-    console.log('🔄 Starting status polling for RR...');
-    const pollInterval = setInterval(async () => {
-      console.log('⏰ Polling RR status...');
-      const envelopeId = process.env.REACT_APP_RR_DOCUSIGN_ID;
-      if (!envelopeId) return;
-
-      try {
-        const result = await makeDocuSignService.getEnvelopeStatus(envelopeId, true);
-        const resultAny = result as any;
-        const status = resultAny.status;
-        const signedDateTime = resultAny.signedDateTime;
-
-        console.log('📊 Polled RR status:', { status, signedDateTime });
-
-        if (status === 'completed' || status === 'signed') {
-          console.log('✅ RR completed during polling!');
-          setRrStatus('completed');
-          setSigningUrl(null);
-          setIsIframeClosed(false);
-          
-          if (onRRChange) {
-            onRRChange({
-              envelopeId,
-              signingUrl: undefined,
-              status: 'completed',
-              isCompleted: true,
-              completedAt: signedDateTime || new Date().toISOString(),
-              recipientEmail,
-              recipientId
-            });
-          }
-        }
-      } catch (error) {
-        console.error('❌ Error during RR status polling:', error);
-      }
-    }, 5000); // Vérifier toutes les 5 secondes
-
-    return () => {
-      console.log('🛑 Stopping RR status polling');
-      clearInterval(pollInterval);
-    };
-  }, [signingUrl, rrStatus, onRRChange, recipientEmail, recipientId]);
+  // Pas de polling automatique pour éviter les boucles
+  // La vérification se fait uniquement au clic sur "Next"
 
   return (
     <div className="w-full h-full flex flex-col">

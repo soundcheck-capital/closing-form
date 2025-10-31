@@ -185,10 +185,10 @@ const MultiStepFormContent: React.FC = () => {
       // Marquer la soumission comme effectuée
       setIsFormSubmitted(true);
       
-      showSuccessMessage('✅ Form submitted successfully!');
+      console.log('✅ Form submitted successfully! Redirecting to success page...');
       
-      // Passer à l'étape suivante (page de succès)
-      setCurrentStep(currentStep + 1);
+      // Rediriger vers la page de succès
+      navigate('/submit-success');
       
     } catch (error) {
       console.error('❌ Error submitting form:', error);
@@ -196,7 +196,7 @@ const MultiStepFormContent: React.FC = () => {
     } finally {
       setIsCheckingSignature(false);
     }
-  }, [currentStep, contractData, rrData, achData, showSuccessMessage, showErrorMessage]);
+  }, [contractData, rrData, achData, navigate, showErrorMessage]);
   
   // Import des services de vérification
   const { makeDocuSignService } = require('../services/makeDocuSignService');
