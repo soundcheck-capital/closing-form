@@ -13,4 +13,11 @@
 [dev]
   command = "npm start"
   port = 3001
-  publish = "build" 
+  publish = "build"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "https://closing-form.netlify.app"
+    Access-Control-Allow-Methods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
