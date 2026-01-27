@@ -6,7 +6,6 @@
 .pnp.js
 .env
 .npm-cache
-package-lock.json
 
 # testing
 /coverage
@@ -29,3 +28,5 @@ playwright-report/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.DS_Store
+package-lock.json
