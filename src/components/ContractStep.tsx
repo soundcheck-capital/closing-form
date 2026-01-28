@@ -22,6 +22,7 @@ const ContractStep: React.FC<ContractStepProps> = ({
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [isIframeClosed, setIsIframeClosed] = useState(false);
+  const [isIframeLoading, setIsIframeLoading] = useState(true);
 
   const loadSigningUrl = useCallback(async (envelopeId: string) => {
     console.log('🔄 loadSigningUrl called for envelope:', envelopeId);
@@ -30,7 +31,7 @@ const ContractStep: React.FC<ContractStepProps> = ({
         envelopeId,
         recipientEmail,
         recipientId,
-        returnUrl: window.location.href // URL de retour après signature/fermeture
+        returnUrl: `${window.location.origin}/docusign-success?type=contract` // URL de retour après signature/fermeture
       });
 
       console.log('📄 Signing URL result:', result);
@@ -54,6 +55,8 @@ const ContractStep: React.FC<ContractStepProps> = ({
         console.log('✅ Signing URL found for client:', signingUrl);
         setSigningUrl(signingUrl);
         setContractStatus('sent');
+        // Garder le loader actif jusqu'à ce que l'iframe soit chargée
+        setIsIframeLoading(true);
         
         if (onContractChange) {
           onContractChange({
@@ -235,11 +238,30 @@ const ContractStep: React.FC<ContractStepProps> = ({
         /* CASE 2: URL de signature disponible - afficher iframe SEULEMENT si pas encore signé ET pas fermée */
         signingUrl && contractStatus !== 'completed' && !contractData?.isSigned && !isIframeClosed ? (
           <div className="relative w-full p-4 h-full min-h-[500px]">
+            {isIframeLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 z-10">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Document</h3>
+                  <p className="text-gray-600">Please wait while the document loads...</p>
+                </div>
+              </div>
+            )}
             <iframe
               src={signingUrl}
               className="w-full h-full min-h-[500px]"
               title="DocuSign Contract"
-              onLoad={() => console.log('📄 Contract iframe loaded')}
+              onLoad={() => {
+                console.log('📄 Contract iframe loaded');
+                setIsIframeLoading(false);
+                setIsLoading(false);
+              }}
+              onError={() => {
+                console.error('❌ Contract iframe failed to load');
+                setIsIframeLoading(false);
+                setIsLoading(false);
+                setError('Failed to load the document. Please try again.');
+              }}
             />
           </div>
         ) :
@@ -254,7 +276,10 @@ const ContractStep: React.FC<ContractStepProps> = ({
               <h3 className="text-lg font-medium text-gray-900 mb-2">Contract Signing Session Closed</h3>
               <p className="text-gray-600 mb-4">You closed the signing interface. Click below to reopen and complete the signature.</p>
               <button
-                onClick={() => setIsIframeClosed(false)}
+                onClick={() => {
+                  setIsIframeClosed(false);
+                  setIsIframeLoading(true);
+                }}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
               >
                 Reopen Contract
@@ -267,7 +292,7 @@ const ContractStep: React.FC<ContractStepProps> = ({
         (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-md">
-              {isLoading ? (
+              {(isLoading || isIframeLoading) ? (
                 <>
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Contract</h3>
