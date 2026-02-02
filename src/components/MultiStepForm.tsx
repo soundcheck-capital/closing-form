@@ -467,10 +467,34 @@ const MultiStepFormContent: React.FC = () => {
         <div className="min-h-screen bg-white py-8">
           {/* Progress Bar */}
           <div className="w-full mx-auto">
-            <div className="relative w-[40%] mx-auto">
-              <div className="rounded-xl absolute top-0 left-0 h-1 bg-gray-200 w-full"></div>
-              <div
-                className="rounded-xl absolute top-0 bg-gradient-to-r from-[#F99927] to-[#EF2A5F] left-0 h-1 transition-all duration-300"
+            <div className="relative w-full">
+              {/* Background track with glass effect */}
+              <div className="
+                rounded-xl 
+                absolute top-0 left-0 
+                h-2 w-full
+                backdrop-blur-sm
+                border border-gray-300/30
+                bg-white/30
+                shadow-inner
+              "></div>
+              
+              {/* Progress fill with glass effect */}
+              <div 
+                className="
+                  rounded-xl 
+                  absolute top-0 left-0 
+                  h-2
+                  backdrop-blur-md
+                  border border-white/40
+                  bg-gradient-to-r from-amber-400/60 via-orange-400/60 to-rose-500/60
+                  shadow-lg shadow-amber-300/40
+                  transition-all duration-300 ease-out
+                  before:absolute before:inset-0 before:rounded-xl
+                  before:bg-gradient-to-r before:from-white/20 before:to-transparent
+                  before:pointer-events-none
+                  relative
+                "
                 style={{ width: `${((currentStep) / 3) * 100}%` }}
               ></div>
             </div>
@@ -514,32 +538,57 @@ const MultiStepFormContent: React.FC = () => {
 
 
           {/* Navigation Buttons */}
-          <div className="flex mt-8 w-full justify-center gap-4">
-            {currentStep !== 1 && (
-              <ButtonSecondary
-              onClick={handlePreviousStep}
-              disabled={currentStep === 1}
-            >
-              Previous
-            </ButtonSecondary>
+          <div className="flex gap-4 w-full mx-auto mt-4 justify-center">
+            {currentStep === 1 && (
+              <ButtonPrimary 
+                className='lg:first:w-[40%]' 
+                onClick={handleNextStep} 
+                disabled={isCheckingSignature || !canProceedToNextStep()}
+              >
+                {isCheckingSignature ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Checking...</span>
+                  </div>
+                ) : (
+                  getNextButtonMessage()
+                )}
+              </ButtonPrimary>
             )}
-        {/* Cacher le bouton Submit à l'étape 3 si le compte est vérifié et soumission déjà faite */}
-        {!(currentStep === 3 && achData?.isVerified === true && isFormSubmitted) && (
-          <ButtonPrimary
-            onClick={handleNextStep}
-            disabled={isCheckingSignature || !canProceedToNextStep()}
-            className={(isCheckingSignature || !canProceedToNextStep()) ? '!bg-gray-500 !hover:bg-gray-600 !opacity-70 !cursor-not-allowed !from-gray-500 !to-gray-600' : ''}
-          >
-          {isCheckingSignature ? (
-            <div className="flex items-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Checking...
-            </div>
-          ) : (
-            getNextButtonMessage()
-          )}
-        </ButtonPrimary>
-        )}
+            {currentStep > 1 && (
+              <ButtonSecondary onClick={handlePreviousStep} disabled={false}>Previous</ButtonSecondary>
+            )}
+
+            {(currentStep < 3 && currentStep > 1) && (
+              <ButtonPrimary 
+                onClick={handleNextStep} 
+                disabled={isCheckingSignature || !canProceedToNextStep()}
+              >
+                {isCheckingSignature ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Checking...</span>
+                  </div>
+                ) : (
+                  getNextButtonMessage()
+                )}
+              </ButtonPrimary>
+            )}
+            {currentStep === 3 && !(achData?.isVerified === true && isFormSubmitted) && (
+              <ButtonPrimary 
+                onClick={handleNextStep} 
+                disabled={isCheckingSignature || !canProceedToNextStep()}
+              >
+                {isCheckingSignature ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Checking...</span>
+                  </div>
+                ) : (
+                  getNextButtonMessage()
+                )}
+              </ButtonPrimary>
+            )}
           </div>
 
           
