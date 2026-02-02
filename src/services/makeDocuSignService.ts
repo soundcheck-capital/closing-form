@@ -219,18 +219,43 @@ class MakeDocuSignService {
           const cleanedResponseText = responseText.replace(/,(\s*[}\]])/g, '$1');
           console.log('🧹 Cleaned JSON response:', cleanedResponseText);
           
-          // Retourner directement la réponse simple { status: "completed", envelopeId: "xxx" }
+          // Parser la réponse JSON
           const result = JSON.parse(cleanedResponseText);
-          console.log('✅ Status response data:', result);
+          console.log('✅ Status response data (parsed):', result);
           console.log('🔍 Status response structure:', JSON.stringify(result, null, 2));
-          console.log('🔍 Status response keys:', Object.keys(result));
-          console.log('🔍 Status value:', result.status);
-          console.log('🔍 EnvelopeId value:', result.envelopeId);
+          console.log('🔍 Status response type:', typeof result);
+          console.log('🔍 Status response is array?', Array.isArray(result));
+          console.log('🔍 Status response keys:', result && typeof result === 'object' ? Object.keys(result) : 'N/A');
           
-          // Mettre en cache le résultat
-          statusCache.set(envelopeId, result, 'status');
+          // Vérifier si la réponse contient directement status, ou si c'est dans un objet
+          let finalResult: any = result;
           
-          return result;
+          // Si c'est un tableau, prendre le premier élément
+          if (Array.isArray(result) && result.length > 0) {
+            console.log('📦 Result is array, taking first element');
+            finalResult = result[0];
+          }
+          // Si c'est un objet avec une propriété data
+          else if (result && typeof result === 'object' && 'data' in result) {
+            console.log('📦 Result has data property, using data');
+            finalResult = result.data;
+          }
+          // Sinon utiliser directement le résultat
+          else {
+            console.log('📦 Using result directly');
+            finalResult = result;
+          }
+          
+          console.log('🔍 Final result:', finalResult);
+          console.log('🔍 Final result keys:', finalResult && typeof finalResult === 'object' ? Object.keys(finalResult) : 'N/A');
+          console.log('🔍 Status value:', finalResult?.status);
+          console.log('🔍 EnvelopeId value:', finalResult?.envelopeId);
+          console.log('🔍 isSigned value:', finalResult?.isSigned);
+          
+          // Mettre en cache le résultat final
+          statusCache.set(envelopeId, finalResult, 'status');
+          
+          return finalResult;
         } catch (parseError) {
           console.error('❌ Could not parse status JSON response:', responseText);
           console.error('❌ Parse error details:', parseError);

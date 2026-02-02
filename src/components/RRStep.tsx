@@ -37,6 +37,26 @@ const RRStep: React.FC<RRStepProps> = ({
 
       const resultAny = result as any;
       
+      // Vérifier d'abord si le document est déjà signé (status: "completed" ou isSigned: true)
+      if (resultAny.status === 'completed' || resultAny.isSigned === true || resultAny.isCompleted === true) {
+        console.log('✅ RR Document is already completed/signed!');
+        setRrStatus('completed');
+        setSigningUrl(null);
+        
+        if (onRRChange) {
+          onRRChange({
+            envelopeId: resultAny.envelopeId || envelopeId,
+            signingUrl: undefined,
+            isCompleted: true,
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+            recipientEmail,
+            recipientId
+          });
+        }
+        return; // Pas besoin de charger l'URL de signature si déjà signé
+      }
+      
       // Make.com renvoie un tableau avec body.url
       let signingUrl = null;
       
@@ -76,9 +96,12 @@ const RRStep: React.FC<RRStepProps> = ({
           setError(resultAny.error);
         }
       } else {
-        console.log('❌ No signing URL in RR response');
+        console.log('⚠️ No signing URL in RR response, but checking if document is already signed...');
         console.log('📄 Full RR response structure:', JSON.stringify(resultAny, null, 2));
-        setError('No signing URL received from Make.com');
+        // Si pas d'URL mais pas d'erreur, ne pas afficher d'erreur (peut-être déjà signé)
+        if (!resultAny.status || resultAny.status !== 'completed') {
+          setError('No signing URL received from Make.com');
+        }
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to load RR signing URL';

@@ -38,6 +38,26 @@ const ContractStep: React.FC<ContractStepProps> = ({
 
       const resultAny = result as any;
       
+      // Vérifier d'abord si le document est déjà signé (status: "completed" ou isSigned: true)
+      if (resultAny.status === 'completed' || resultAny.isSigned === true) {
+        console.log('✅ Contract is already completed/signed!');
+        setContractStatus('completed');
+        setSigningUrl(null);
+        
+        if (onContractChange) {
+          onContractChange({
+            envelopeId: resultAny.envelopeId || envelopeId,
+            signingUrl: undefined,
+            isSigned: true,
+            status: 'completed',
+            signedAt: new Date().toISOString(),
+            recipientEmail,
+            recipientId
+          });
+        }
+        return; // Pas besoin de charger l'URL de signature si déjà signé
+      }
+      
       // Make.com renvoie un tableau avec body.url
       let signingUrl = null;
       
@@ -77,9 +97,12 @@ const ContractStep: React.FC<ContractStepProps> = ({
           setError(resultAny.error);
         }
       } else {
-        console.log('❌ No signing URL in response');
+        console.log('⚠️ No signing URL in response, but checking if document is already signed...');
         console.log('📄 Full response structure:', JSON.stringify(resultAny, null, 2));
-        setError('No signing URL received from Make.com');
+        // Si pas d'URL mais pas d'erreur, ne pas afficher d'erreur (peut-être déjà signé)
+        if (!resultAny.status || resultAny.status !== 'completed') {
+          setError('No signing URL received from Make.com');
+        }
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to load signing URL';
