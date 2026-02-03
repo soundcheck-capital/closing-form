@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import FormSubmissionGuard from './components/FormSubmissionGuard';
 import reportWebVitals from './reportWebVitals';
 import SubmitSuccess from './components/SubmitSuccess';
+import DocuSignSuccess from './components/DocuSignSuccess';
 import PasswordProtection from './components/PasswordProtection';
 
 const root = ReactDOM.createRoot(
@@ -30,6 +31,7 @@ root.render(
               </ProtectedRoute>
             } />
             <Route path="/submit-success" element={<SubmitSuccess />} />
+            <Route path="/docusign-success" element={<DocuSignSuccess />} />
         </Routes>
       </BrowserRouter>
     </Provider>

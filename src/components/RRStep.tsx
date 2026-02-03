@@ -22,6 +22,7 @@ const RRStep: React.FC<RRStepProps> = ({
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [isIframeClosed, setIsIframeClosed] = useState(false);
+  const [isIframeLoading, setIsIframeLoading] = useState(true);
 
   const loadSigningUrl = useCallback(async (envelopeId: string) => {
     try {
@@ -29,12 +30,32 @@ const RRStep: React.FC<RRStepProps> = ({
         envelopeId,
         recipientEmail,
         recipientId,
-        returnUrl: window.location.href // URL de retour après signature/fermeture
+        returnUrl: `${window.location.origin}/docusign-success?type=rr` // URL de retour après signature/fermeture
       });
 
       console.log('📄 RR Signing URL result:', result);
 
       const resultAny = result as any;
+      
+      // Vérifier d'abord si le document est déjà signé (status: "completed" ou isSigned: true)
+      if (resultAny.status === 'completed' || resultAny.isSigned === true || resultAny.isCompleted === true) {
+        console.log('✅ RR Document is already completed/signed!');
+        setRrStatus('completed');
+        setSigningUrl(null);
+        
+        if (onRRChange) {
+          onRRChange({
+            envelopeId: resultAny.envelopeId || envelopeId,
+            signingUrl: undefined,
+            isCompleted: true,
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+            recipientEmail,
+            recipientId
+          });
+        }
+        return; // Pas besoin de charger l'URL de signature si déjà signé
+      }
       
       // Make.com renvoie un tableau avec body.url
       let signingUrl = null;
@@ -53,6 +74,8 @@ const RRStep: React.FC<RRStepProps> = ({
         console.log('✅ RR Signing URL found for client:', signingUrl);
         setSigningUrl(signingUrl);
         setRrStatus('sent');
+        // Garder le loader actif jusqu'à ce que l'iframe soit chargée
+        setIsIframeLoading(true);
         
         if (onRRChange) {
           onRRChange({
@@ -73,9 +96,12 @@ const RRStep: React.FC<RRStepProps> = ({
           setError(resultAny.error);
         }
       } else {
-        console.log('❌ No signing URL in RR response');
+        console.log('⚠️ No signing URL in RR response, but checking if document is already signed...');
         console.log('📄 Full RR response structure:', JSON.stringify(resultAny, null, 2));
-        setError('No signing URL received from Make.com');
+        // Si pas d'URL mais pas d'erreur, ne pas afficher d'erreur (peut-être déjà signé)
+        if (!resultAny.status || resultAny.status !== 'completed') {
+          setError('No signing URL received from Make.com');
+        }
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to load RR signing URL';
@@ -226,11 +252,30 @@ const RRStep: React.FC<RRStepProps> = ({
         /* CASE 2: URL de signature disponible - afficher iframe SEULEMENT si pas encore signé ET pas fermée */
         signingUrl && rrStatus !== 'completed' && !rrData?.isCompleted && !isIframeClosed ? (
           <div className="relative w-full h-full min-h-[600px]">
+            {isIframeLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 z-10">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Document</h3>
+                  <p className="text-gray-600">Please wait while the document loads...</p>
+                </div>
+              </div>
+            )}
             <iframe
               src={signingUrl}
               className="w-full h-full min-h-[600px]"
               title="DocuSign RR Document"
-              onLoad={() => console.log('📄 RR iframe loaded')}
+              onLoad={() => {
+                console.log('📄 RR iframe loaded');
+                setIsIframeLoading(false);
+                setIsLoading(false);
+              }}
+              onError={() => {
+                console.error('❌ RR iframe failed to load');
+                setIsIframeLoading(false);
+                setIsLoading(false);
+                setError('Failed to load the document. Please try again.');
+              }}
             />
           </div>
         ) :
@@ -245,7 +290,10 @@ const RRStep: React.FC<RRStepProps> = ({
               <h3 className="text-lg font-medium text-gray-900 mb-2">RR Signing Session Closed</h3>
               <p className="text-gray-600 mb-4">You closed the signing interface. Click below to reopen and complete the signature.</p>
               <button
-                onClick={() => setIsIframeClosed(false)}
+                onClick={() => {
+                  setIsIframeClosed(false);
+                  setIsIframeLoading(true);
+                }}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
               >
                 Reopen RR Document
@@ -258,7 +306,7 @@ const RRStep: React.FC<RRStepProps> = ({
         (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-md">
-              {isLoading ? (
+              {(isLoading || isIframeLoading) ? (
                 <>
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Loading RR Document</h3>

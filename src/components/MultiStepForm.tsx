@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import { RootState, AppDispatch } from '../store';
 import { fetchApplicationById } from '../store/auth/authThunks';
-import logo from '../assets/logo_black_bold.svg';
+import logo from '../assets/logo_side_black.svg';
 import ButtonSecondary from './customComponents/ButtonSecondary';
 import ButtonPrimary from './customComponents/ButtonPrimary';
 import ContractStep from './ContractStep';
@@ -461,16 +461,40 @@ const MultiStepFormContent: React.FC = () => {
     <div className="flex flex-row animate-fade-in-right duration-1000 lg:w-[70%] xs:w-[100%] mx-auto h-full ">
       <main className="w-full h-full flex flex-col bg-white p-6">
         <div className="flex justify-center items-center">
-          <img src={logo} alt="Logo" className="w-24 " />
+          <img src={logo} alt="Logo" className="w-48 " />
         </div>
 
         <div className="min-h-screen bg-white py-8">
           {/* Progress Bar */}
           <div className="w-full mx-auto">
-            <div className="relative w-[40%] mx-auto">
-              <div className="rounded-xl absolute top-0 left-0 h-1 bg-gray-200 w-full"></div>
-              <div
-                className="rounded-xl absolute top-0 bg-gradient-to-r from-[#F99927] to-[#EF2A5F] left-0 h-1 transition-all duration-300"
+            <div className="relative w-full">
+              {/* Background track with glass effect */}
+              <div className="
+                rounded-xl 
+                absolute top-0 left-0 
+                h-2 w-full
+                backdrop-blur-sm
+                border border-gray-300/30
+                bg-white/30
+                shadow-inner
+              "></div>
+              
+              {/* Progress fill with glass effect */}
+              <div 
+                className="
+                  rounded-xl 
+                  absolute top-0 left-0 
+                  h-2
+                  backdrop-blur-md
+                  border border-white/40
+                  bg-gradient-to-r from-amber-400/60 via-orange-400/60 to-rose-500/60
+                  shadow-lg shadow-amber-300/40
+                  transition-all duration-300 ease-out
+                  before:absolute before:inset-0 before:rounded-xl
+                  before:bg-gradient-to-r before:from-white/20 before:to-transparent
+                  before:pointer-events-none
+                  relative
+                "
                 style={{ width: `${((currentStep) / 3) * 100}%` }}
               ></div>
             </div>
@@ -514,32 +538,57 @@ const MultiStepFormContent: React.FC = () => {
 
 
           {/* Navigation Buttons */}
-          <div className="flex mt-8 w-full justify-center gap-4">
-            {currentStep !== 1 && (
-              <ButtonSecondary
-              onClick={handlePreviousStep}
-              disabled={currentStep === 1}
-            >
-              Previous
-            </ButtonSecondary>
+          <div className="flex gap-4 w-full mx-auto mt-4 justify-center">
+            {currentStep === 1 && (
+              <ButtonPrimary 
+                className='lg:first:w-[40%]' 
+                onClick={handleNextStep} 
+                disabled={isCheckingSignature || !canProceedToNextStep()}
+              >
+                {isCheckingSignature ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Checking...</span>
+                  </div>
+                ) : (
+                  getNextButtonMessage()
+                )}
+              </ButtonPrimary>
             )}
-        {/* Cacher le bouton Submit à l'étape 3 si le compte est vérifié et soumission déjà faite */}
-        {!(currentStep === 3 && achData?.isVerified === true && isFormSubmitted) && (
-          <ButtonPrimary
-            onClick={handleNextStep}
-            disabled={isCheckingSignature || !canProceedToNextStep()}
-            className={(isCheckingSignature || !canProceedToNextStep()) ? '!bg-gray-500 !hover:bg-gray-600 !opacity-70 !cursor-not-allowed !from-gray-500 !to-gray-600' : ''}
-          >
-          {isCheckingSignature ? (
-            <div className="flex items-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Checking...
-            </div>
-          ) : (
-            getNextButtonMessage()
-          )}
-        </ButtonPrimary>
-        )}
+            {currentStep > 1 && (
+              <ButtonSecondary onClick={handlePreviousStep} disabled={false}>Previous</ButtonSecondary>
+            )}
+
+            {(currentStep < 3 && currentStep > 1) && (
+              <ButtonPrimary 
+                onClick={handleNextStep} 
+                disabled={isCheckingSignature || !canProceedToNextStep()}
+              >
+                {isCheckingSignature ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Checking...</span>
+                  </div>
+                ) : (
+                  getNextButtonMessage()
+                )}
+              </ButtonPrimary>
+            )}
+            {currentStep === 3 && !(achData?.isVerified === true && isFormSubmitted) && (
+              <ButtonPrimary 
+                onClick={handleNextStep} 
+                disabled={isCheckingSignature || !canProceedToNextStep()}
+              >
+                {isCheckingSignature ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Checking...</span>
+                  </div>
+                ) : (
+                  getNextButtonMessage()
+                )}
+              </ButtonPrimary>
+            )}
           </div>
 
           
@@ -557,24 +606,24 @@ const MultiStepFormContent: React.FC = () => {
           <DevToggle isDevelopment={isDevelopment} />
         </div>
       </main>
-        {/* Snack Message */}
+        {/* Snack Message - Positioned at bottom center */}
         {snackMessage && (
-          <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transition-all duration-300 ${
+          <div className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 p-4 rounded-lg shadow-lg z-50 transition-all duration-300 max-w-md w-full mx-4 ${
             snackMessage.type === 'success' 
               ? 'bg-green-50 border border-green-200 text-green-800' 
               : 'bg-red-50 border border-red-200 text-red-800'
           }`}>
-            <div className="flex items-center">
+            <div className="flex items-center justify-center">
               {snackMessage.type === 'success' ? (
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
               )}
-              <span className="font-medium">{snackMessage.message}</span>
+              <span className="font-medium text-center">{snackMessage.message}</span>
             </div>
           </div>
         )}
