@@ -10,31 +10,28 @@ const SubmitSuccess: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const isDevelopment = process.env.NODE_ENV === 'development';
   const navigate = useNavigate();
+
   const handleReset = () => {
     dispatch(resetSubmitted());
-      navigate('/form');
+    navigate('/form');
   };
 
-
-
   return (
-    <div className="min-h-screen  flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-cover bg-center bg-black/50 bg-blend-overlay" style={{ backgroundImage: `url(${background})`, backgroundSize: 'cover', backgroundPosition: 'center', }}>
+    <div
+      className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-cover bg-center bg-black/50 bg-blend-overlay"
+      style={{ backgroundImage: `url(${background})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+    >
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <img 
-            src={logo} 
-            alt="Closing Form" 
-            className="h-24 w-auto  "
-          />
+          <img src={logo} alt="Closing Form" className="h-24 w-auto" />
         </div>
-        <div className='flex flex-col items-center justify-center gap-4'>
-          <h1 className='text-2xl font-bold text-white mt-4 text-center'>Contract signed successfully!</h1>
-          
-          {/* Development Mode Reset Button */}
-          {  isDevelopment && localStorage.getItem('DISABLE_SUBMISSION_BLOCK') === 'true' && (
+        <div className="flex flex-col items-center justify-center gap-4">
+          <h1 className="text-2xl font-bold text-white mt-4 text-center">Bank account connected successfully!</h1>
+
+          {isDevelopment && localStorage.getItem('DISABLE_SUBMISSION_BLOCK') === 'true' && (
             <button
               onClick={handleReset}
-              className="mt-4 px-4 py-2 bg-amber-500 text-white rounded hover:bg-amber-600 f "
+              className="mt-4 px-4 py-2 bg-amber-500 text-white rounded hover:bg-amber-600"
             >
               Reset & Return to Form (Dev Mode)
             </button>
@@ -43,6 +40,6 @@ const SubmitSuccess: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};
 
-export default SubmitSuccess; 
+export default SubmitSuccess;

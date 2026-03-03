@@ -31,7 +31,7 @@ export const AddressAutocomplete: React.FC<{ label: string, name: string, value:
     if (!isLoaded || !inputRef.current) return;
 
     
-      const autocomplete = new window.google.maps.places.Autocomplete(
+      const autocomplete = new google.maps.places.Autocomplete(
         inputRef.current,
         {
           componentRestrictions: { country: "US" },
@@ -65,7 +65,7 @@ export const AddressAutocomplete: React.FC<{ label: string, name: string, value:
       });
       return () => {
         // important : on enlève le listener pour éviter les doublons
-        window.google.maps.event.clearListeners(autocomplete, "place_changed");
+        google.maps.event.clearListeners(autocomplete, "place_changed");
       };
   }, [isLoaded]);
 

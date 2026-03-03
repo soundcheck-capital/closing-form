@@ -62,7 +62,7 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
   // Charger Stripe au montage du composant (sans dépendre de FCA)
   useEffect(() => {
     const loadStripe = async () => {
-      const stripePublishableKey = process.env.REACT_APP_STRIPE_API_KEY;
+      const stripePublishableKey = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
 
       console.log('🔍 Stripe config check:', {
         hasPublishableKey: !!stripePublishableKey,
