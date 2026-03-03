@@ -11,6 +11,11 @@ type ACHData = {
   mandateId?: string;
   status?: string;
   financialConnectionsAccountId?: string;
+  customerInfo?: {
+    fullName: string;
+    companyName: string;
+    email: string;
+  };
 };
 
 const MultiStepForm: React.FC = () => {
@@ -95,13 +100,6 @@ const MultiStepForm: React.FC = () => {
         </div>
 
         <div className="min-h-screen bg-white py-8">
-          <div className="text-center my-8">
-            <h2 className="text-2xl font-bold text-gray-800">Bank Account Connection</h2>
-            <p className="text-gray-600 mt-2">
-              Connect your bank account through Stripe Financial Connections to complete this form.
-            </p>
-          </div>
-
           <div className="w-full h-full">
             <ACHDirectDebitStep achData={achData} onACHChange={handleACHChange} />
           </div>

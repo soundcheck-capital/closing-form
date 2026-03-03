@@ -9,9 +9,20 @@ interface ACHDirectDebitStepProps {
     mandateId?: string;
     status?: string;
     financialConnectionsAccountId?: string;
+    customerInfo?: {
+      fullName: string;
+      companyName: string;
+      email: string;
+    };
   };
   onACHChange?: (data: any) => void;
 }
+
+type CustomerInfo = {
+  fullName: string;
+  companyName: string;
+  email: string;
+};
 
 declare global {
   interface Window {
@@ -27,7 +38,50 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [stripeLoaded, setStripeLoaded] = useState(false);
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
+    fullName: '',
+    companyName: '',
+    email: ''
+  });
+  const [touchedFields, setTouchedFields] = useState({
+    fullName: false,
+    companyName: false,
+    email: false
+  });
   const stripeRef = useRef<any>(null);
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const customerInfoErrors = {
+    fullName:
+      customerInfo.fullName.trim().length < 2
+        ? 'Please enter a valid full name.'
+        : '',
+    companyName:
+      customerInfo.companyName.trim().length < 2
+        ? 'Please enter a valid company name.'
+        : '',
+    email: emailPattern.test(customerInfo.email.trim())
+      ? ''
+      : 'Please enter a valid email address.'
+  };
+  const isCustomerInfoValid =
+    !customerInfoErrors.fullName &&
+    !customerInfoErrors.companyName &&
+    !customerInfoErrors.email;
+
+  const handleCustomerInfoChange = (field: keyof CustomerInfo, value: string) => {
+    setCustomerInfo((prev) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleCustomerInfoBlur = (field: keyof CustomerInfo) => {
+    setTouchedFields((prev) => ({
+      ...prev,
+      [field]: true
+    }));
+  };
 
 
   // Surveiller les appels à l'endpoint Stripe complete
@@ -239,7 +293,8 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
             verifiedAt: new Date().toISOString(),
             mandateId: `mandate_${Date.now()}`,
             status: 'completed',
-            financialConnectionsAccountId: fcaId
+            financialConnectionsAccountId: fcaId,
+            customerInfo
           };
           console.log('🏦 ACH Sending to parent (onACHChange):', achDataToSend);
           onACHChange(achDataToSend);
@@ -273,16 +328,6 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col ">
-      {/* Header */}
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-2">
-          Bank Account Connection
-        </h3>
-        <p className="text-gray-600">
-          Connect your bank account securely using Stripe Financial Connections.
-        </p>
-      </div>
-
       {/* Verification Status */}
       {achData?.isVerified && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -372,12 +417,66 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
                   <p className="text-gray-600 mb-6">
                     Securely connect your bank account using Stripe Financial Connections.
                   </p>
+                  <div className="space-y-4 mb-6 text-left">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={customerInfo.fullName}
+                        onChange={(e) => handleCustomerInfoChange('fullName', e.target.value)}
+                        onBlur={() => handleCustomerInfoBlur('fullName')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="John Doe"
+                      />
+                      {touchedFields.fullName && customerInfoErrors.fullName && (
+                        <p className="mt-1 text-xs text-red-600">{customerInfoErrors.fullName}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                      <input
+                        type="text"
+                        value={customerInfo.companyName}
+                        onChange={(e) => handleCustomerInfoChange('companyName', e.target.value)}
+                        onBlur={() => handleCustomerInfoBlur('companyName')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="Acme Inc."
+                      />
+                      {touchedFields.companyName && customerInfoErrors.companyName && (
+                        <p className="mt-1 text-xs text-red-600">{customerInfoErrors.companyName}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={customerInfo.email}
+                        onChange={(e) => handleCustomerInfoChange('email', e.target.value)}
+                        onBlur={() => handleCustomerInfoBlur('email')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="john@company.com"
+                      />
+                      {touchedFields.email && customerInfoErrors.email && (
+                        <p className="mt-1 text-xs text-red-600">{customerInfoErrors.email}</p>
+                      )}
+                    </div>
+                    {!isCustomerInfoValid && (
+                      <p className="text-xs text-gray-500">
+                        Fill in full name, company name, and a valid email to enable bank connection.
+                      </p>
+                    )}
+                  </div>
                   <button
                     onClick={() => {
                       setError(null); // Nettoyer l'erreur avant de recommencer
+                      setTouchedFields({
+                        fullName: true,
+                        companyName: true,
+                        email: true
+                      });
                       startFinancialConnections();
                     }}
-                    disabled={!stripeLoaded || isConnecting}
+                    disabled={!stripeLoaded || isConnecting || !isCustomerInfoValid}
                     className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors duration-200 font-medium"
                   >
                     {isConnecting ? (
