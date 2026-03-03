@@ -14,6 +14,7 @@ interface ACHDirectDebitStepProps {
       companyName: string;
       email: string;
     };
+    stripeSessionData?: any;
   };
   onACHChange?: (data: any) => void;
 }
@@ -81,6 +82,14 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
       ...prev,
       [field]: true
     }));
+  };
+
+  const toJsonSafe = (value: any) => {
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      return value;
+    }
   };
 
 
@@ -294,7 +303,14 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
             mandateId: `mandate_${Date.now()}`,
             status: 'completed',
             financialConnectionsAccountId: fcaId,
-            customerInfo
+            customerInfo,
+            stripeSessionData: {
+              stripeResult: toJsonSafe(stripeResult),
+              financialConnectionsSession: toJsonSafe(session),
+              accounts: toJsonSafe(accounts),
+              sessionStatus: sessionStatus,
+              fcaBootstrapData: toJsonSafe(sessionData)
+            }
           };
           console.log('🏦 ACH Sending to parent (onACHChange):', achDataToSend);
           onACHChange(achDataToSend);

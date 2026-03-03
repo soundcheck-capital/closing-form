@@ -16,6 +16,7 @@ type ACHData = {
     companyName: string;
     email: string;
   };
+  stripeSessionData?: any;
 };
 
 const MultiStepForm: React.FC = () => {
@@ -35,7 +36,7 @@ const MultiStepForm: React.FC = () => {
     setTimeout(() => setSnackMessage(null), 5000);
   }, []);
 
-  const submitForm = useCallback(async () => {
+  const submitForm = useCallback(async (payloadAchData?: ACHData) => {
     try {
       setIsSubmitting(true);
 
@@ -53,7 +54,7 @@ const MultiStepForm: React.FC = () => {
         body: JSON.stringify({
           timestamp: new Date().toISOString(),
           formData: {
-            ach: achData
+            ach: payloadAchData ?? achData
           }
         })
       });
@@ -80,7 +81,7 @@ const MultiStepForm: React.FC = () => {
 
       if (isNowVerified && !wasVerified && !isFormSubmitted) {
         showSuccessMessage('Bank account connected successfully!');
-        await submitForm();
+        await submitForm(newAchData);
       }
     },
     [achData.isVerified, isFormSubmitted, showSuccessMessage, submitForm]
@@ -88,9 +89,9 @@ const MultiStepForm: React.FC = () => {
 
   useEffect(() => {
     if (achData.isVerified === true && !isFormSubmitted && !isSubmitting) {
-      submitForm();
+      submitForm(achData);
     }
-  }, [achData.isVerified, isFormSubmitted, isSubmitting, submitForm]);
+  }, [achData, achData.isVerified, isFormSubmitted, isSubmitting, submitForm]);
 
   return (
     <div className="flex flex-row animate-fade-in-right duration-1000 lg:w-[70%] xs:w-[100%] mx-auto h-full">
