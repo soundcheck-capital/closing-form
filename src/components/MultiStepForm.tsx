@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
 import logo from '../assets/logo_side_black.svg';
 import ACHDirectDebitStep from './ACHDirectDebitStep';
 
@@ -17,19 +15,10 @@ type ACHData = {
 
 const MultiStepForm: React.FC = () => {
   const navigate = useNavigate();
-  const formState = useSelector((state: RootState) => state.form);
   const [achData, setACHData] = useState<ACHData>({ isVerified: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
   const [snackMessage, setSnackMessage] = useState<SnackMessage | null>(null);
-  const isDevelopment = process.env.NODE_ENV === 'development';
-
-  useEffect(() => {
-    const disableSubmissionBlock = localStorage.getItem('DISABLE_SUBMISSION_BLOCK') === 'true';
-    if (formState.isSubmitted && !isDevelopment && !disableSubmissionBlock) {
-      navigate('/submit-success');
-    }
-  }, [formState.isSubmitted, isDevelopment, navigate]);
 
   const showSuccessMessage = useCallback((message: string) => {
     setSnackMessage({ type: 'success', message });
@@ -46,14 +35,9 @@ const MultiStepForm: React.FC = () => {
       setIsSubmitting(true);
 
       const submitEndpoint = process.env.REACT_APP_CLOSING_FORM_SUBMIT_WEBHOOK;
-      const hubspotDealId = process.env.REACT_APP_HUBSPOT_DEAL_ID;
 
       if (!submitEndpoint) {
         throw new Error('REACT_APP_CLOSING_FORM_SUBMIT_WEBHOOK endpoint not configured');
-      }
-
-      if (!hubspotDealId) {
-        throw new Error('REACT_APP_HUBSPOT_DEAL_ID not configured');
       }
 
       const response = await fetch(submitEndpoint, {
@@ -62,7 +46,6 @@ const MultiStepForm: React.FC = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          hubspotDealId,
           timestamp: new Date().toISOString(),
           formData: {
             ach: achData

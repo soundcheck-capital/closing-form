@@ -7,7 +7,6 @@ export interface FCAData {
   fcsess: string;
   fcsess_client_secret: string;
   sessionId?: string;
-  customerId?: string;
   permissions?: string[];
   filters?: {
     countries?: string[];
@@ -23,179 +22,109 @@ export interface FCAResponse {
 
 class StripeFCAService {
   private webhookUrl: string;
-  private pendingRequests: Map<string, Promise<FCAResponse>> = new Map();
+  private pendingRequest: Promise<FCAResponse> | null = null;
 
   constructor() {
     this.webhookUrl = process.env.REACT_APP_STRIPE_FCA_WEBHOOK || '';
   }
 
   /**
-   * Génère une clé unique pour une requête
-   */
-  private getRequestKey(customerId: string): string {
-    return `fca_${customerId}`;
-  }
-
-  /**
    * Évite les appels concurrents identiques
    */
-  private async deduplicateRequest(
-    requestKey: string, 
-    requestFn: () => Promise<FCAResponse>
-  ): Promise<FCAResponse> {
-    // Si une requête identique est déjà en cours, attendre sa réponse
-    if (this.pendingRequests.has(requestKey)) {
-      console.log(`🔄 Deduplicating FCA request: ${requestKey}`);
-      return await this.pendingRequests.get(requestKey)!;
+  private async deduplicateRequest(requestFn: () => Promise<FCAResponse>): Promise<FCAResponse> {
+    if (this.pendingRequest) {
+      console.log('🔄 Deduplicating FCA request');
+      return await this.pendingRequest;
     }
 
-    // Créer et stocker la nouvelle requête
-    const requestPromise = requestFn().finally(() => {
-      // Nettoyer après completion
-      this.pendingRequests.delete(requestKey);
+    this.pendingRequest = requestFn().finally(() => {
+      this.pendingRequest = null;
     });
 
-    this.pendingRequests.set(requestKey, requestPromise);
-    return await requestPromise;
+    return await this.pendingRequest;
   }
 
   /**
-   * Récupère les données FCA pour un customer Stripe
-   * @param customerId - ID du customer Stripe
-   * @param hubspotDealId - ID du deal HubSpot (optionnel)
+   * Récupère les données FCA de façon générique (sans customerId/dealId)
    * @returns Promise<FCAResponse>
    */
-  async getFCAData(customerId: string, hubspotDealId?: string): Promise<FCAResponse> {
-    const requestKey = this.getRequestKey(customerId);
-    
-    return this.deduplicateRequest(requestKey, async () => {
-      console.log('🚀 Starting FCA data retrieval for customer:', customerId);
-      
+  async getFCAData(): Promise<FCAResponse> {
+    return this.deduplicateRequest(async () => {
       try {
         if (!this.webhookUrl) {
           throw new Error('Stripe FCA webhook URL not configured');
         }
 
-        if (!customerId) {
-          throw new Error('Customer ID is required');
-        }
-
-        console.log('📡 Calling FCA webhook:', this.webhookUrl);
-        
-        const payload: any = {
-          customerId
+        const payload = {
+          timestamp: new Date().toISOString()
         };
-        
-        if (hubspotDealId) {
-          payload.hubspotDealId = hubspotDealId;
-        }
-        
-        console.log('📡 FCA payload sent:', payload);
 
-        // Créer un AbortController pour gérer le timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
           console.log('⏰ FCA request timeout after 30 seconds, aborting...');
           controller.abort();
-        }, 30000); // 30 secondes timeout
+        }, 30000);
 
         const response = await fetch(this.webhookUrl, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(payload),
           signal: controller.signal
         });
 
         clearTimeout(timeoutId);
-        console.log('📨 FCA response received:', response.status, response.statusText);
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('❌ FCA response error:', errorText);
           throw new Error(`FCA webhook request failed: ${response.status} - ${errorText}`);
         }
 
         const responseText = await response.text();
-        console.log('📨 FCA service response:', responseText);
-        
-        // Si Make.com retourne "Accepted", c'est normal - le scénario traite en arrière-plan
-        if (responseText === "Accepted" || responseText === '"Accepted"') {
-          console.log('⏳ FCA scenario is processing in background...');
+
+        if (responseText === 'Accepted' || responseText === '"Accepted"') {
           return {
             success: false,
             error: 'FCA data preparation in progress, please try again in a moment...'
           };
         }
-        
+
         try {
-          // Clean the JSON by removing trailing commas
           const cleanedResponseText = responseText.replace(/,(\s*[}\]])/g, '$1');
-          console.log('🧹 Cleaned FCA JSON response:', cleanedResponseText);
-          
           const result = JSON.parse(cleanedResponseText);
-          console.log('✅ FCA response data:', result);
-          
-          // Vérifier que les données requises sont présentes
-          // Les champs dans la réponse Stripe sont 'id' et 'client_secret'
+
           if (result.id && result.client_secret) {
             return {
               success: true,
               data: {
-                fcsess: result.id,  // "fcsess_1SLPaeEbD091Xafj34jWNmfa"
-                fcsess_client_secret: result.client_secret,  // "fcsess_client_secret_I2ZZrXiBvEHO8GUTGNcF7lbR"
+                fcsess: result.id,
+                fcsess_client_secret: result.client_secret,
                 sessionId: result.id,
-                customerId: result.account_holder?.customer,
                 permissions: result.permissions,
                 filters: result.filters
               }
             };
-          } else {
-            console.warn('⚠️ FCA response missing required fields:', result);
-            console.warn('⚠️ Expected fields: id, client_secret');
-            console.warn('⚠️ Available fields:', Object.keys(result));
-            return {
-              success: false,
-              error: 'FCA response missing required fields (id, client_secret)'
-            };
           }
+
+          return {
+            success: false,
+            error: 'FCA response missing required fields (id, client_secret)'
+          };
         } catch (parseError) {
-          console.error('❌ Could not parse FCA JSON response:', responseText);
-          console.error('❌ Parse error details:', parseError);
+          console.error('❌ Could not parse FCA JSON response:', parseError);
           return {
             success: false,
             error: 'Invalid FCA response format from webhook'
           };
         }
       } catch (error) {
-        console.error('❌ Error getting FCA data:', error);
-        
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error'
         };
       }
     });
-  }
-
-  /**
-   * Récupère les données FCA en utilisant les variables d'environnement
-   * @returns Promise<FCAResponse>
-   */
-  async getFCADataFromEnv(): Promise<FCAResponse> {
-    const customerId = process.env.REACT_APP_STRIPE_CUSTOMER_ID;
-    const hubspotDealId = process.env.REACT_APP_HUBSPOT_DEAL_ID;
-    
-    if (!customerId) {
-      return {
-        success: false,
-        error: 'REACT_APP_STRIPE_CUSTOMER_ID not configured'
-      };
-    }
-
-    console.log('📋 Using HubSpot Deal ID:', hubspotDealId);
-    return this.getFCAData(customerId, hubspotDealId);
   }
 }
 

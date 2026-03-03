@@ -5,7 +5,6 @@ import { Provider } from 'react-redux';
 import { store } from './store';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MultiStepForm from './components/MultiStepForm';
-import FormSubmissionGuard from './components/FormSubmissionGuard';
 import reportWebVitals from './reportWebVitals';
 import SubmitSuccess from './components/SubmitSuccess';
 
@@ -19,14 +18,7 @@ root.render(
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/form" replace />} />
-          <Route
-            path="/form"
-            element={
-              <FormSubmissionGuard>
-                <MultiStepForm />
-              </FormSubmissionGuard>
-            }
-          />
+          <Route path="/form" element={<MultiStepForm />} />
           <Route path="/submit-success" element={<SubmitSuccess />} />
         </Routes>
       </BrowserRouter>
