@@ -2,8 +2,9 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders App component', () => {
-  render(<App />);
-  const appElement = screen.getByRole('main');
-  expect(appElement).toBeInTheDocument();
+describe('App', () => {
+  it('renders main container', () => {
+    render(<App />);
+    expect(screen.getByRole('main')).toBeInTheDocument();
+  });
 });
