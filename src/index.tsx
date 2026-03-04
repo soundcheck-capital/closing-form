@@ -5,7 +5,6 @@ import { Provider } from 'react-redux';
 import { store } from './store';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MultiStepForm from './components/MultiStepForm';
-import reportWebVitals from './reportWebVitals';
 import SubmitSuccess from './components/SubmitSuccess';
 
 const root = ReactDOM.createRoot(
@@ -25,5 +24,3 @@ root.render(
     </Provider>
   </React.StrictMode>
 );
-
-reportWebVitals();
