@@ -16,6 +16,7 @@ interface ACHDirectDebitStepProps {
     };
     stripeSessionData?: any;
   };
+  initialCustomerInfo?: Partial<CustomerInfo>;
   onACHChange?: (data: any) => void;
 }
 
@@ -33,6 +34,7 @@ declare global {
 
 const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({ 
   achData, 
+  initialCustomerInfo,
   onACHChange 
 }) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +43,7 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
   const [stripeLoaded, setStripeLoaded] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
     fullName: '',
-    companyName: '',
+    companyName: initialCustomerInfo?.companyName || '',
     email: ''
   });
   const [touchedFields, setTouchedFields] = useState({

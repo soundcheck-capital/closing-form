@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo_side_black.svg';
 import ACHDirectDebitStep from './ACHDirectDebitStep';
 
@@ -20,11 +20,15 @@ type ACHData = {
 };
 
 const MultiStepForm: React.FC = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const [achData, setACHData] = useState<ACHData>({ isVerified: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
   const [snackMessage, setSnackMessage] = useState<SnackMessage | null>(null);
+
+  const companyNameParam = new URLSearchParams(location.search).get('companyName');
+  const initialCompanyName = companyNameParam?.trim() || '';
 
   const showSuccessMessage = useCallback((message: string) => {
     setSnackMessage({ type: 'success', message });
@@ -102,7 +106,12 @@ const MultiStepForm: React.FC = () => {
 
         <div className="min-h-screen bg-white py-8">
           <div className="w-full h-full">
-            <ACHDirectDebitStep achData={achData} onACHChange={handleACHChange} />
+            <ACHDirectDebitStep
+              key={initialCompanyName}
+              achData={achData}
+              initialCustomerInfo={{ companyName: initialCompanyName }}
+              onACHChange={handleACHChange}
+            />
           </div>
 
           {isSubmitting && (
