@@ -83,6 +83,7 @@ const formSlice = createSlice({
     },
     clearFormData: () => {
       localStorage.removeItem('closingFormData');
+      localStorage.removeItem('formAuthenticated');
       return initialState;
     },
     setSubmitted: (state) => {
@@ -92,6 +93,7 @@ const formSlice = createSlice({
     resetSubmitted: (state) => {
       state.isSubmitted = false;
       localStorage.removeItem('closingFormData');
+      localStorage.removeItem('formAuthenticated');
     }
   }
 });

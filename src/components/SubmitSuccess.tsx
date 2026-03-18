@@ -26,7 +26,7 @@ const SubmitSuccess: React.FC = () => {
           <img src={logo} alt="Closing Form" className="h-24 w-auto" />
         </div>
         <div className="flex flex-col items-center justify-center gap-4">
-          <h1 className="text-2xl font-bold text-white mt-4 text-center">Bank account connected successfully!</h1>
+          <h1 data-testid="submit-success-title" className="text-2xl font-bold text-white mt-4 text-center">Bank account connected successfully!</h1>
 
           {isDevelopment && localStorage.getItem('DISABLE_SUBMISSION_BLOCK') === 'true' && (
             <button

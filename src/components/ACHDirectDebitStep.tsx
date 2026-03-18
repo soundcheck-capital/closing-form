@@ -439,6 +439,7 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                       <input
+                        data-testid="full-name-input"
                         type="text"
                         value={customerInfo.fullName}
                         onChange={(e) => handleCustomerInfoChange('fullName', e.target.value)}
@@ -453,6 +454,7 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
                       <input
+                        data-testid="company-name-input"
                         type="text"
                         value={customerInfo.companyName}
                         onChange={(e) => handleCustomerInfoChange('companyName', e.target.value)}
@@ -467,6 +469,7 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                       <input
+                        data-testid="email-input"
                         type="email"
                         value={customerInfo.email}
                         onChange={(e) => handleCustomerInfoChange('email', e.target.value)}
@@ -485,6 +488,7 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
                     )}
                   </div>
                   <button
+                    data-testid="connect-bank-account-button"
                     onClick={() => {
                       setError(null); // Nettoyer l'erreur avant de recommencer
                       setTouchedFields({
