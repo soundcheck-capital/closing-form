@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import logo from '../assets/logo_side_black.svg';
 import ACHDirectDebitStep from './ACHDirectDebitStep';
 
@@ -21,7 +21,6 @@ type ACHData = {
 
 const MultiStepForm: React.FC = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const [achData, setACHData] = useState<ACHData>({ isVerified: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
@@ -68,13 +67,12 @@ const MultiStepForm: React.FC = () => {
       }
 
       setIsFormSubmitted(true);
-      navigate('/submit-success');
     } catch (error) {
       showErrorMessage(`Error submitting form: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }
-  }, [achData, navigate, showErrorMessage]);
+  }, [achData, showErrorMessage]);
 
   const handleACHChange = useCallback(
     async (newAchData: ACHData) => {

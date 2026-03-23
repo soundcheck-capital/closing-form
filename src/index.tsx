@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import MultiStepForm from './components/MultiStepForm';
 import PasswordProtection from './components/PasswordProtection';
 import ProtectedRoute from './components/ProtectedRoute';
-import SubmitSuccess from './components/SubmitSuccess';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
@@ -34,7 +33,6 @@ root.render(
               </ProtectedRoute>
             }
           />
-          <Route path="/submit-success" element={<SubmitSuccess />} />
         </Routes>
       </BrowserRouter>
     </Provider>

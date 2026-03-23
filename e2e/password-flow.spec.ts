@@ -72,8 +72,9 @@ test.describe('customer link password flow', () => {
 
     await page.getByTestId('connect-bank-account-button').click();
 
-    await expect(page.getByTestId('submit-success-title')).toBeVisible();
-    await expect(page).toHaveURL(/\/submit-success$/);
+    await expect(page).toHaveURL(new RegExp(`/form\\?companyName=${TEST_COMPANY_NAME.replace('.', '\\.')}`));
+    await expect(page.getByRole('heading', { name: 'Bank Account Connected!' })).toBeVisible();
+    await expect(page.getByText('Bank account connected successfully!')).toBeVisible();
 
     const authenticated = await page.evaluate(() => localStorage.getItem('formAuthenticated'));
     expect(authenticated).toBe('true');
