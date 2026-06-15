@@ -199,7 +199,7 @@ const ACHDirectDebitStep: React.FC<ACHDirectDebitStepProps> = ({
     // TOUJOURS charger une nouvelle session FCA au clic
     try {
       console.log('🔄 Loading fresh FCA data on button click...');
-      const result = await stripeFCAService.getFCAData();
+      const result = await stripeFCAService.getFCAData(customerInfo);
       
       if (!result.success || !result.data) {
         setError(result.error || 'Failed to load Financial Connections session');

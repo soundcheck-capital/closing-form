@@ -48,7 +48,7 @@ class StripeFCAService {
    * Récupère les données FCA de façon générique (sans customerId/dealId)
    * @returns Promise<FCAResponse>
    */
-  async getFCAData(): Promise<FCAResponse> {
+  async getFCAData(customerInfo: { fullName: string; companyName: string; email: string }): Promise<FCAResponse> {
     return this.deduplicateRequest(async () => {
       try {
         if (!this.webhookUrl) {
@@ -56,6 +56,9 @@ class StripeFCAService {
         }
 
         const payload = {
+          fullName: customerInfo.fullName,
+          companyName: customerInfo.companyName,
+          email: customerInfo.email,
           timestamp: new Date().toISOString()
         };
 
