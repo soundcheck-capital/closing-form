@@ -16,6 +16,8 @@ playwright-report/
 
 # production
 /build
+.next/
+out/
 
 # misc
 .DS_Store
