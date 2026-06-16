@@ -19,6 +19,7 @@
     "stripe": "^18"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.15.11",
     "@playwright/test": "^1.58.2",
     "@types/node": "^22",
     "@types/react": "^19.1.9",
