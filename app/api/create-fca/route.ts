@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
       prefetch: ['balances'],
     });
 
+    Sentry.captureMessage('FCA session created', 'info');
+
     return NextResponse.json({
       id: fcSession.id,
       client_secret: fcSession.client_secret,

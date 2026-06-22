@@ -5,6 +5,6 @@ const nextConfig: NextConfig = {};
 
 export default withSentryConfig(nextConfig, {
   org: 'soundcheck-capital',
-  project: 'closing-form',
+  project: 'stripe-form',
   silent: !process.env.CI,
 });
