@@ -47,6 +47,8 @@ export async function POST(request: NextRequest) {
       mrkdwn: true,
     });
 
+    Sentry.captureMessage('Bank account confirmed & Slack notified', 'info');
+
     return NextResponse.json({ success: true });
   } catch (error) {
     Sentry.captureException(error);
