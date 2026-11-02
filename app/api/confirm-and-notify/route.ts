@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
-import { getSlack, SLACK_CHANNEL_ID } from '@/lib/slack';
+import { notifyBankConnected } from '@/lib/notify';
 import * as Sentry from '@sentry/nextjs';
 
 export async function POST(request: NextRequest) {
@@ -9,7 +9,6 @@ export async function POST(request: NextRequest) {
     const { customerId, setupIntentId, financialConnectionsAccountId, customerInfo } = body;
 
     const stripe = getStripe();
-    const slack = getSlack();
 
     if (!customerId || !setupIntentId || !financialConnectionsAccountId || !customerInfo) {
       return NextResponse.json(
@@ -33,21 +32,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const stripeCustomerUrl = `https://dashboard.stripe.com/customers/${customerId}`;
-    const slackMessage =
-      `:bank: Bank account connected!\n` +
-      `*Company:* ${customerInfo.companyName}\n` +
-      `*Contact:* ${customerInfo.fullName} (${customerInfo.email})\n` +
-      `*Stripe Customer:* <${stripeCustomerUrl}|${customerId}>\n` +
-      `*FCA Account:* ${financialConnectionsAccountId}`;
-
-    await slack.chat.postMessage({
-      channel: SLACK_CHANNEL_ID,
-      text: slackMessage,
-      mrkdwn: true,
-    });
-
-    Sentry.captureMessage('Bank account confirmed & Slack notified', 'info');
+    // The bank is connected at this point: a notification failure goes to Sentry, never back to the customer.
+    try {
+      await notifyBankConnected({
+        companyName: customerInfo.companyName,
+        fullName: customerInfo.fullName,
+        email: customerInfo.email,
+        customerId,
+        financialConnectionsAccountId,
+      });
+      Sentry.captureMessage('Bank account confirmed & notified', 'info');
+    } catch (notifyError) {
+      Sentry.captureException(notifyError);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
