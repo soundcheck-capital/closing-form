@@ -27,16 +27,16 @@ jobs:
         id: s
         run: node -e 'const s=require("./package.json").scripts||{};for(const k of ["lint","typecheck","test","build"])console.log(`${k}=${k in s}`)' >> "$GITHUB_OUTPUT"
       - name: Lint
-        if: steps.s.outputs.lint == 'true'
+        if: ${{ !cancelled() && steps.s.outputs.lint == 'true' }}
         run: npm run lint
       - name: Typecheck
-        if: steps.s.outputs.typecheck == 'true'
+        if: ${{ !cancelled() && steps.s.outputs.typecheck == 'true' }}
         run: npm run typecheck
       - name: Test
-        if: steps.s.outputs.test == 'true'
+        if: ${{ !cancelled() && steps.s.outputs.test == 'true' }}
         run: npm test
       - name: Build
-        if: steps.s.outputs.build == 'true'
+        if: ${{ !cancelled() && steps.s.outputs.build == 'true' }}
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
