@@ -6,6 +6,9 @@ export async function notifyBankConnected(payload: {
   email: string;
   customerId: string;
   financialConnectionsAccountId: string;
+  bankName?: string;
+  routingLast4?: string;
+  accountLast4?: string;
 }): Promise<void> {
   const url = process.env.N8N_BANK_CONNECTED_WEBHOOK_URL;
   const apiKey = process.env.N8N_WEBHOOK_API_KEY;
