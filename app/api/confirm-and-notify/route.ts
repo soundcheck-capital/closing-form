@@ -1,27 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { notifyBankConnected } from '@/lib/notify';
-import { bankDetails } from '@/lib/bankDetails';
+import { bankDetails, fcAccountDetails, type BankDetails } from '@/lib/bankDetails';
+import { confirmParams } from '@/lib/confirmParams';
 import * as Sentry from '@sentry/nextjs';
 
-// Called after the customer accepted the mandate and Stripe.js confirmed the SetupIntent.
-// The server never confirms (a mandate must come from the customer): it only checks the SetupIntent
-// really succeeded with a us_bank_account payment method, then notifies.
 export async function POST(request: NextRequest) {
   try {
-    const { customerId, setupIntentId, customerInfo } = await request.json();
-
-    if (!customerId || !setupIntentId || !customerInfo) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
+    const body = await request.json();
+    const { customerId, setupIntentId, financialConnectionsAccountId, customerInfo } = body;
 
     const stripe = getStripe();
-    const si = await stripe.setupIntents.retrieve(setupIntentId, { expand: ['payment_method'] });
-    const pm = typeof si.payment_method === 'object' ? si.payment_method : null;
 
-    if (si.customer !== customerId || si.status !== 'succeeded' || pm?.type !== 'us_bank_account') {
-      Sentry.captureMessage(`SetupIntent ${setupIntentId} not confirmed (${si.status})`, 'error');
-      return NextResponse.json({ error: 'Bank account not confirmed' }, { status: 409 });
+    if (!customerId || !setupIntentId || !financialConnectionsAccountId || !customerInfo) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Confirm the SetupIntent with a payment method built from the connected FC account (nothing else creates one).
+    // A failure goes to Sentry and never blocks the notification; scripts/setup-intents-report.mjs shows it.
+    try {
+      const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+      const fca = await stripe.financialConnections.accounts.retrieve(financialConnectionsAccountId);
+      if (setupIntent.customer !== customerId || fca.account_holder?.customer !== customerId) {
+        throw new Error(`SetupIntent ${setupIntentId} / ${financialConnectionsAccountId} do not belong to ${customerId}`);
+      }
+      if (setupIntent.status === 'requires_payment_method') {
+        const ip = request.headers.get('x-nf-client-connection-ip')
+          ?? request.headers.get('x-forwarded-for')?.split(',')[0].trim()
+          ?? '127.0.0.1'; // ponytail: local next start only, Netlify always sends the client IP
+        await stripe.setupIntents.confirm(
+          setupIntentId,
+          confirmParams(financialConnectionsAccountId, customerInfo, ip, request.headers.get('user-agent') ?? 'unknown'),
+        );
+      }
+    } catch (confirmError) {
+      Sentry.captureException(confirmError);
+    }
+
+    // Bank name + last 4 digits for the Slack message; a failure here never blocks the notification.
+    let details: BankDetails = {};
+    try {
+      const si = await stripe.setupIntents.retrieve(setupIntentId, { expand: ['payment_method'] });
+      details = bankDetails(si.payment_method);
+      // Confirm failed (no payment method): bank name + last 4 from the connected Financial Connections account
+      if (!details.bankName && !details.accountLast4) {
+        details = fcAccountDetails(await stripe.financialConnections.accounts.retrieve(financialConnectionsAccountId));
+      }
+    } catch (detailsError) {
+      Sentry.captureException(detailsError);
     }
 
     // The bank is connected at this point: a notification failure goes to Sentry, never back to the customer.
@@ -31,8 +60,8 @@ export async function POST(request: NextRequest) {
         fullName: customerInfo.fullName,
         email: customerInfo.email,
         customerId,
-        financialConnectionsAccountId: pm.us_bank_account?.financial_connections_account ?? '',
-        ...bankDetails(pm),
+        financialConnectionsAccountId,
+        ...details,
       });
       Sentry.captureMessage('Bank account confirmed & notified', 'info');
     } catch (notifyError) {

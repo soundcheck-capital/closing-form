@@ -13,3 +13,13 @@ export function bankDetails(pm: Stripe.PaymentMethod | string | null | undefined
     ...(last4 ? { accountLast4: last4 } : {}),
   };
 }
+
+// Fallback when the SetupIntent confirm failed (no payment method): bank name + last 4 from the connected
+// Financial Connections account. For tokenized accounts (Chase) last4 is the tokenized number's.
+export function fcAccountDetails(acct: Pick<Stripe.FinancialConnections.Account, 'institution_name' | 'last4'> | null | undefined): BankDetails {
+  if (!acct) return {};
+  return {
+    ...(acct.institution_name ? { bankName: acct.institution_name } : {}),
+    ...(acct.last4 ? { accountLast4: acct.last4 } : {}),
+  };
+}
