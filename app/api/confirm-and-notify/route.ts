@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { notifyBankConnected } from '@/lib/notify';
-import { bankDetails, type BankDetails } from '@/lib/bankDetails';
+import { bankDetails, fcAccountDetails, type BankDetails } from '@/lib/bankDetails';
 import * as Sentry from '@sentry/nextjs';
 
 export async function POST(request: NextRequest) {
@@ -38,6 +38,10 @@ export async function POST(request: NextRequest) {
     try {
       const si = await stripe.setupIntents.retrieve(setupIntentId, { expand: ['payment_method'] });
       details = bankDetails(si.payment_method);
+      // No payment method (the usual case): bank name + last 4 from the connected Financial Connections account
+      if (!details.bankName && !details.accountLast4) {
+        details = fcAccountDetails(await stripe.financialConnections.accounts.retrieve(financialConnectionsAccountId));
+      }
     } catch (detailsError) {
       Sentry.captureException(detailsError);
     }
