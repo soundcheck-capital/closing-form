@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { notifyBankConnected } from '@/lib/notify';
+import { bankDetails, type BankDetails } from '@/lib/bankDetails';
 import * as Sentry from '@sentry/nextjs';
 
 export async function POST(request: NextRequest) {
@@ -32,6 +33,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Bank name + last 4 digits for the Slack message; a failure here never blocks the notification.
+    let details: BankDetails = {};
+    try {
+      const si = await stripe.setupIntents.retrieve(setupIntentId, { expand: ['payment_method'] });
+      details = bankDetails(si.payment_method);
+    } catch (detailsError) {
+      Sentry.captureException(detailsError);
+    }
+
     // The bank is connected at this point: a notification failure goes to Sentry, never back to the customer.
     try {
       await notifyBankConnected({
@@ -40,6 +50,7 @@ export async function POST(request: NextRequest) {
         email: customerInfo.email,
         customerId,
         financialConnectionsAccountId,
+        ...details,
       });
       Sentry.captureMessage('Bank account confirmed & notified', 'info');
     } catch (notifyError) {
