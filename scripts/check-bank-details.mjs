@@ -1,7 +1,7 @@
 // Checks lib/bankDetails.ts (bank name + last 4 digits for the n8n "Bank account connected" Slack message).
 // Usage: node scripts/check-bank-details.mjs  (Node 22.18+ strips the TypeScript types)
 import assert from 'node:assert/strict';
-import { bankDetails, fcAccountDetails } from '../lib/bankDetails.ts';
+import { bankDetails } from '../lib/bankDetails.ts';
 
 const pm = { id: 'pm_1', type: 'us_bank_account', us_bank_account: { bank_name: 'JPMorgan Chase', last4: '6789', routing_number: '021000021' } };
 const out = bankDetails(pm);
@@ -10,9 +10,4 @@ assert.ok(!/0021|routing/i.test(JSON.stringify(out)), 'no routing number is sent
 for (const v of ['pm_123', null, undefined, { id: 'pm_2', type: 'card', card: {} }]) assert.deepEqual(bankDetails(v), {});
 assert.deepEqual(bankDetails({ id: 'pm_3', type: 'us_bank_account', us_bank_account: { bank_name: null, last4: '1111', routing_number: null } }),
   { accountLast4: '1111' });
-// Financial Connections account (what the form actually has: no payment method is created, 2026-11-23)
-assert.deepEqual(fcAccountDetails({ id: 'fca_1', object: 'financial_connections.account', institution_name: 'Chase', last4: '7915' }),
-  { bankName: 'Chase', accountLast4: '7915' });
-assert.deepEqual(fcAccountDetails({ id: 'fca_2', institution_name: '', last4: null }), {});
-assert.deepEqual(fcAccountDetails(null), {});
 console.log('all ok');

@@ -12,7 +12,8 @@ type CustomerInfo = {
 type ConnectionState =
   | { status: 'idle' }
   | { status: 'connecting' }
-  | { status: 'submitting' }
+  | { status: 'mandate'; clientSecret: string; customerId: string; setupIntentId: string }
+  | { status: 'confirming'; clientSecret: string; customerId: string; setupIntentId: string }
   | { status: 'success' }
   | { status: 'error'; message: string };
 
@@ -73,53 +74,66 @@ export default function FormPage({ initialCompanyName }: { initialCompanyName: s
       const stripe = await stripePromise;
       if (!stripe) throw new Error('Stripe failed to load');
 
-      const result = await stripe.collectFinancialConnectionsAccounts({ clientSecret: client_secret });
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      const accounts = result.financialConnectionsSession?.accounts ?? [];
-
-      if (accounts.length === 0) {
-        setConnectionState({ status: 'error', message: 'Connection cancelled. Please click "Connect Bank Account" to try again.' });
-        return;
-      }
-
-      const fcaId = accounts[0].id;
-      if (!fcaId?.startsWith('fca_')) {
-        setConnectionState({ status: 'error', message: 'Connection cancelled. Please click "Connect Bank Account" to try again.' });
-        return;
-      }
-
-      setConnectionState({ status: 'submitting' });
-      showSnack('success', 'Bank account connected successfully!');
-
-      const confirmRes = await fetch('/api/confirm-and-notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId,
-          setupIntentId,
-          financialConnectionsAccountId: fcaId,
-          customerInfo,
-        }),
+      // Bank login + account choice (Financial Connections); attaches a us_bank_account payment method
+      const { setupIntent, error } = await stripe.collectBankAccountForSetup({
+        clientSecret: client_secret,
+        params: {
+          payment_method_type: 'us_bank_account',
+          payment_method_data: { billing_details: { name: customerInfo.fullName, email: customerInfo.email } },
+        },
       });
 
-      if (!confirmRes.ok) {
-        const err = await confirmRes.json();
-        console.error('Confirm/notify failed:', err);
-        // ponytail: don't block success — bank is connected even if notification fails
+      if (error) throw new Error(error.message);
+
+      if (setupIntent.status !== 'requires_confirmation') {
+        setConnectionState({ status: 'error', message: 'Connection cancelled. Please click "Connect Bank Account" to try again.' });
+        return;
       }
 
-      setConnectionState({ status: 'success' });
+      setConnectionState({ status: 'mandate', clientSecret: client_secret, customerId, setupIntentId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to connect bank account';
       setConnectionState({ status: 'error', message });
     }
   };
 
-  const isConnecting = connectionState.status === 'connecting' || connectionState.status === 'submitting';
+  // The customer accepted the ACH debit authorization: Stripe.js confirms the SetupIntent and records the mandate
+  // (IP + user agent of this browser). Nothing is confirmed without this click.
+  const acceptMandate = async () => {
+    if (connectionState.status !== 'mandate') return;
+    const { clientSecret, customerId, setupIntentId } = connectionState;
+    setConnectionState({ status: 'confirming', clientSecret, customerId, setupIntentId });
+
+    try {
+      const stripe = await stripePromise;
+      if (!stripe) throw new Error('Stripe failed to load');
+
+      const { setupIntent, error } = await stripe.confirmUsBankAccountSetup(clientSecret);
+      if (error) throw new Error(error.message);
+      if (setupIntent.status !== 'succeeded') throw new Error('Your bank account could not be confirmed. Please try again.');
+
+      showSnack('success', 'Bank account connected successfully!');
+
+      const confirmRes = await fetch('/api/confirm-and-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId, setupIntentId, customerInfo }),
+      });
+
+      if (!confirmRes.ok) {
+        // ponytail: don't block success, the SetupIntent is confirmed even if the notification fails
+        console.error('Confirm/notify failed:', await confirmRes.json().catch(() => ({})));
+      }
+
+      setConnectionState({ status: 'success' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to confirm bank account';
+      setConnectionState({ status: 'error', message });
+    }
+  };
+
+  const isConnecting = connectionState.status === 'connecting';
+  const showMandate = connectionState.status === 'mandate' || connectionState.status === 'confirming';
   const isSuccess = connectionState.status === 'success';
   const errorMessage = connectionState.status === 'error' ? connectionState.message : null;
 
@@ -165,6 +179,31 @@ export default function FormPage({ initialCompanyName }: { initialCompanyName: s
                     </svg>
                     <h3 className="text-xl font-semibold text-green-800 mb-2">Bank Account Connected!</h3>
                     <p className="text-green-700 mb-4">Your bank account has been successfully connected.</p>
+                  </div>
+                </div>
+              ) : showMandate ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="max-w-md text-left">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2 text-center">Authorize ACH Debits</h3>
+                    <p data-testid="ach-mandate-text" className="text-sm text-gray-700 mb-6">
+                      By clicking &quot;Accept and confirm&quot;, you authorize SoundCheck Capital to debit the bank
+                      account you just connected for any amount owed under your agreement with SoundCheck Capital,
+                      until this authorization is revoked. You may amend or cancel this authorization at any time by
+                      providing notice to SoundCheck Capital with 30 (thirty) days notice. If amounts become due
+                      periodically under your agreement, you authorize SoundCheck Capital to debit your bank account
+                      periodically. Payments that fall outside of the regular debits authorized above will only be
+                      debited after your authorization is obtained.
+                    </p>
+                    <div className="text-center">
+                      <button
+                        data-testid="accept-mandate-button"
+                        onClick={acceptMandate}
+                        disabled={connectionState.status === 'confirming'}
+                        className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors duration-200 font-medium"
+                      >
+                        {connectionState.status === 'confirming' ? 'Confirming...' : 'Accept and confirm'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -255,9 +294,6 @@ export default function FormPage({ initialCompanyName }: { initialCompanyName: s
               )}
             </div>
 
-            {connectionState.status === 'submitting' && (
-              <div className="mt-4 text-center text-gray-600">Submitting your information...</div>
-            )}
           </div>
         </div>
       </main>

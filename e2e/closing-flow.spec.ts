@@ -11,16 +11,16 @@ test.describe('closing form flow', () => {
         status: 200,
         contentType: 'application/javascript',
         body: `
+          window.__stripeCalls = [];
           window.Stripe = function(pk) {
             return {
-              collectFinancialConnectionsAccounts: function(opts) {
-                return Promise.resolve({
-                  financialConnectionsSession: {
-                    id: 'fcsess_test_e2e',
-                    status: 'completed',
-                    accounts: [{ id: 'fca_test_e2e' }],
-                  },
-                });
+              collectBankAccountForSetup: function(opts) {
+                window.__stripeCalls.push('collect:' + opts.clientSecret + ':' + opts.params.payment_method_type);
+                return Promise.resolve({ setupIntent: { id: 'seti_test_e2e', status: 'requires_confirmation', payment_method: 'pm_test_e2e' } });
+              },
+              confirmUsBankAccountSetup: function(clientSecret) {
+                window.__stripeCalls.push('confirm:' + clientSecret);
+                return Promise.resolve({ setupIntent: { id: 'seti_test_e2e', status: 'succeeded', payment_method: 'pm_test_e2e' } });
               },
             };
           };
@@ -34,8 +34,7 @@ test.describe('closing form flow', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 'fcsess_test_e2e',
-          client_secret: 'fcsess_client_secret_test',
+          client_secret: 'seti_test_e2e_secret_test',
           customerId: 'cus_test_e2e',
           setupIntentId: 'seti_test_e2e',
         }),
@@ -83,6 +82,18 @@ test.describe('closing form flow', () => {
     await page.getByTestId('email-input').fill(TEST_EMAIL);
 
     await page.getByTestId('connect-bank-account-button').click();
+
+    // The customer must see and accept the ACH mandate: nothing is confirmed before the click
+    await expect(page.getByTestId('ach-mandate-text')).toContainText('authorize SoundCheck Capital to debit');
+    expect(await page.evaluate(() => (window as any).__stripeCalls)).toEqual(['collect:seti_test_e2e_secret_test:us_bank_account']);
+
+    const notify = page.waitForRequest('**/api/confirm-and-notify');
+    await page.getByTestId('accept-mandate-button').click();
+    expect((await notify).postDataJSON()).toMatchObject({ customerId: 'cus_test_e2e', setupIntentId: 'seti_test_e2e' });
+    expect(await page.evaluate(() => (window as any).__stripeCalls)).toEqual([
+      'collect:seti_test_e2e_secret_test:us_bank_account',
+      'confirm:seti_test_e2e_secret_test',
+    ]);
 
     await expect(page.getByRole('heading', { name: 'Bank Account Connected!' })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Your bank account has been successfully connected.')).toBeVisible();

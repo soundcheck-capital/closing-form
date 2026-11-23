@@ -1,49 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { notifyBankConnected } from '@/lib/notify';
-import { bankDetails, fcAccountDetails, type BankDetails } from '@/lib/bankDetails';
+import { bankDetails } from '@/lib/bankDetails';
 import * as Sentry from '@sentry/nextjs';
 
+// Called after the customer accepted the mandate and Stripe.js confirmed the SetupIntent.
+// The server never confirms (a mandate must come from the customer): it only checks the SetupIntent
+// really succeeded with a us_bank_account payment method, then notifies.
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { customerId, setupIntentId, financialConnectionsAccountId, customerInfo } = body;
+    const { customerId, setupIntentId, customerInfo } = await request.json();
+
+    if (!customerId || !setupIntentId || !customerInfo) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
 
     const stripe = getStripe();
+    const si = await stripe.setupIntents.retrieve(setupIntentId, { expand: ['payment_method'] });
+    const pm = typeof si.payment_method === 'object' ? si.payment_method : null;
 
-    if (!customerId || !setupIntentId || !financialConnectionsAccountId || !customerInfo) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
-
-    if (setupIntent.status === 'requires_payment_method' || setupIntent.status === 'requires_confirmation') {
-      const paymentMethods = await stripe.paymentMethods.list({
-        customer: customerId,
-        type: 'us_bank_account',
-      });
-
-      if (paymentMethods.data.length > 0) {
-        await stripe.setupIntents.confirm(setupIntentId, {
-          payment_method: paymentMethods.data[0].id,
-        });
-      }
-    }
-
-    // Bank name + last 4 digits for the Slack message; a failure here never blocks the notification.
-    let details: BankDetails = {};
-    try {
-      const si = await stripe.setupIntents.retrieve(setupIntentId, { expand: ['payment_method'] });
-      details = bankDetails(si.payment_method);
-      // No payment method (the usual case): bank name + last 4 from the connected Financial Connections account
-      if (!details.bankName && !details.accountLast4) {
-        details = fcAccountDetails(await stripe.financialConnections.accounts.retrieve(financialConnectionsAccountId));
-      }
-    } catch (detailsError) {
-      Sentry.captureException(detailsError);
+    if (si.customer !== customerId || si.status !== 'succeeded' || pm?.type !== 'us_bank_account') {
+      Sentry.captureMessage(`SetupIntent ${setupIntentId} not confirmed (${si.status})`, 'error');
+      return NextResponse.json({ error: 'Bank account not confirmed' }, { status: 409 });
     }
 
     // The bank is connected at this point: a notification failure goes to Sentry, never back to the customer.
@@ -53,8 +31,8 @@ export async function POST(request: NextRequest) {
         fullName: customerInfo.fullName,
         email: customerInfo.email,
         customerId,
-        financialConnectionsAccountId,
-        ...details,
+        financialConnectionsAccountId: pm.us_bank_account?.financial_connections_account ?? '',
+        ...bankDetails(pm),
       });
       Sentry.captureMessage('Bank account confirmed & notified', 'info');
     } catch (notifyError) {
