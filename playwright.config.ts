@@ -13,6 +13,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'npm run dev',
+    env: { NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_e2e' }, // js.stripe.com is mocked in the spec
     url: 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

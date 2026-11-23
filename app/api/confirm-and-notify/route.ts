@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { notifyBankConnected } from '@/lib/notify';
 import { bankDetails, fcAccountDetails, type BankDetails } from '@/lib/bankDetails';
+import { confirmParams } from '@/lib/confirmParams';
 import * as Sentry from '@sentry/nextjs';
 
 export async function POST(request: NextRequest) {
@@ -18,19 +19,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
-
-    if (setupIntent.status === 'requires_payment_method' || setupIntent.status === 'requires_confirmation') {
-      const paymentMethods = await stripe.paymentMethods.list({
-        customer: customerId,
-        type: 'us_bank_account',
-      });
-
-      if (paymentMethods.data.length > 0) {
-        await stripe.setupIntents.confirm(setupIntentId, {
-          payment_method: paymentMethods.data[0].id,
-        });
+    // Confirm the SetupIntent with a payment method built from the connected FC account (nothing else creates one).
+    // A failure goes to Sentry and never blocks the notification; scripts/setup-intents-report.mjs shows it.
+    try {
+      const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+      const fca = await stripe.financialConnections.accounts.retrieve(financialConnectionsAccountId);
+      if (setupIntent.customer !== customerId || fca.account_holder?.customer !== customerId) {
+        throw new Error(`SetupIntent ${setupIntentId} / ${financialConnectionsAccountId} do not belong to ${customerId}`);
       }
+      if (setupIntent.status === 'requires_payment_method') {
+        const ip = request.headers.get('x-nf-client-connection-ip')
+          ?? request.headers.get('x-forwarded-for')?.split(',')[0].trim()
+          ?? '127.0.0.1'; // ponytail: local next start only, Netlify always sends the client IP
+        await stripe.setupIntents.confirm(
+          setupIntentId,
+          confirmParams(financialConnectionsAccountId, customerInfo, ip, request.headers.get('user-agent') ?? 'unknown'),
+        );
+      }
+    } catch (confirmError) {
+      Sentry.captureException(confirmError);
     }
 
     // Bank name + last 4 digits for the Slack message; a failure here never blocks the notification.
@@ -38,7 +45,7 @@ export async function POST(request: NextRequest) {
     try {
       const si = await stripe.setupIntents.retrieve(setupIntentId, { expand: ['payment_method'] });
       details = bankDetails(si.payment_method);
-      // No payment method (the usual case): bank name + last 4 from the connected Financial Connections account
+      // Confirm failed (no payment method): bank name + last 4 from the connected Financial Connections account
       if (!details.bankName && !details.accountLast4) {
         details = fcAccountDetails(await stripe.financialConnections.accounts.retrieve(financialConnectionsAccountId));
       }
